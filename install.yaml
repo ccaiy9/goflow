@@ -1,0 +1,3 @@
+policy:
+  auto_rollback: true
+  rollback_in_scene: false
