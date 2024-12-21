@@ -66,6 +66,9 @@ func TestExampleManuRollBackLineFlow(t *testing.T) {
 		mf := loadFlow(ctxStorage)
 
 		fid, tid, _ := mf.GetFailedHint()
+
+		mf.GetCts(ctxStorage)
+
 		mf.UpdateFailedScene(fid, tid)
 		mf.RollBackByManual(ctxStorage)
 		fmt.Println(mf.PrintErrors())

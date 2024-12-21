@@ -1,11 +1,11 @@
 package base
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/gogf/gf/v2/frame/g"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -13,6 +13,7 @@ import (
 
 const (
 	p = "./flow.hint"
+	t = "./tk.db"
 )
 
 type failedScene struct {
@@ -120,6 +121,10 @@ func (f *Flow) Execute(cts CtxStorage) error {
 					if errS := f.syncFailedHint(tk); errS != nil {
 						fmt.Errorf("syncFailedHint failed: %+v", errS)
 					}
+
+					if errS := f.syncCts(cts); errS != nil {
+						fmt.Errorf("syncCts failed: %+v", errS)
+					}
 				}
 			}
 
@@ -225,27 +230,9 @@ func (f *Flow) PrintErrors() string {
 }
 
 func (f *Flow) syncFailedHint(tk *atomTaskBase) error {
-	_, err := os.Stat(p)
-	if os.IsNotExist(err) {
-		file, err := os.Create(p)
-		if err != nil {
-			fmt.Errorf("error creating file: %+v", err)
-			return err
-		}
-		file.Close()
-	}
-
-	file, err := os.OpenFile(p, os.O_WRONLY|os.O_TRUNC, 0755)
-	if err != nil {
-		fmt.Errorf("error opening file: %+v", err)
-		return err
-	}
-	defer file.Close()
-
 	s := fmt.Sprintf("%d-%d", tk.GetFId(), tk.GetTId())
-	_, err = file.WriteString(s)
+	err := doSync(p, s)
 	if err != nil {
-		fmt.Errorf("error writing to file: %+v", err)
 		return err
 	}
 
@@ -253,16 +240,10 @@ func (f *Flow) syncFailedHint(tk *atomTaskBase) error {
 }
 
 func (f *Flow) GetFailedHint() (int8, int8, error) {
-	r, err := os.Open(p)
-	if err != nil {
-		fmt.Errorf("open %s failed: %+v", p, err)
-		return 0, 0, err
-	}
 
-	scanner := bufio.NewScanner(r)
-	var line string
-	for scanner.Scan() {
-		line = scanner.Text()
+	line, err := doGet(p)
+	if err != nil {
+		return 0, 0, err
 	}
 
 	parts := strings.Split(line, "-")
@@ -278,6 +259,36 @@ func (f *Flow) GetFailedHint() (int8, int8, error) {
 	}
 
 	return int8(fid), int8(tid), nil
+}
+
+func (f *Flow) GetCts(cts CtxStorage) error {
+	line, err := doGet(t)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal([]byte(line), &cts)
+	if err != nil {
+		fmt.Errorf("unmarshal cts failed: %+v", err)
+		return err
+	}
+
+	return nil
+}
+
+func (f *Flow) syncCts(cts CtxStorage) error {
+	b, err := json.Marshal(cts)
+	if err != nil {
+		fmt.Errorf("marshal cts failed: %+v", err)
+		return err
+	}
+
+	err = doSync(t, string(b))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (f *Flow) UpdateFailedScene(fid, tid int8) {
@@ -311,4 +322,42 @@ func (f *Flow) RollBackByManual(cts CtxStorage) error {
 	}
 
 	return nil
+}
+
+func doSync(filePath, data string) error {
+	_, err := os.Stat(filePath)
+	if os.IsNotExist(err) {
+		file, err := os.Create(filePath)
+		if err != nil {
+			fmt.Errorf("error creating file: %+v", err)
+			return err
+		}
+		file.Close()
+	}
+
+	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_TRUNC, 0755)
+	if err != nil {
+		fmt.Errorf("error opening file: %+v", err)
+		return err
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(data)
+	if err != nil {
+		fmt.Errorf("error writing to file: %+v", err)
+		return err
+	}
+
+	return nil
+}
+
+func doGet(filePath string) (string, error) {
+
+	data, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		fmt.Errorf("read %s failed: %+v", filePath, err)
+		return "", err
+	}
+
+	return string(data), nil
 }
