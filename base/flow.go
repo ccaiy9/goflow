@@ -201,7 +201,7 @@ func (f *Flow) SubmitTasks(ts ...AtomTask) {
 	f.syncTaskIndex(&f.tasks, 0, &fIndex)
 }
 
-func (f *Flow) PrintErrors() string {
+func (f *Flow) _printErrors() FlowError {
 	var flowErrors FlowError
 
 	handler := func(t AtomTask) {
@@ -225,8 +225,22 @@ func (f *Flow) PrintErrors() string {
 		}
 	}
 
-	reqJSON, _ := json.Marshal(flowErrors)
+	return flowErrors
+}
+
+func (f *Flow) PrintErrors() string {
+	fe := f._printErrors()
+
+	reqJSON, _ := json.Marshal(fe)
 	return string(reqJSON)
+}
+
+func (f *Flow) IsSucceed() bool {
+	fe := f._printErrors()
+	if len(fe.GetExecuteErr().Errors) > 0 || len(fe.GetRollbackErr().Errors) > 0 {
+		return false
+	}
+	return true
 }
 
 func (f *Flow) syncFailedHint(tk *atomTaskBase) error {

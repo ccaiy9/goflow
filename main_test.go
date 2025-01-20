@@ -55,7 +55,7 @@ func TestExampleExecuteLineFlow(t *testing.T) {
 		mf := loadFlow(ctxStorage)
 		mf.Execute(ctxStorage)
 		fmt.Println(mf.PrintErrors())
-
+		fmt.Println(mf.IsSucceed())
 	})
 }
 
@@ -72,5 +72,6 @@ func TestExampleManuRollBackLineFlow(t *testing.T) {
 		mf.UpdateFailedScene(fid, tid)
 		mf.RollBackByManual(ctxStorage)
 		fmt.Println(mf.PrintErrors())
+		fmt.Println(mf.IsSucceed())
 	})
 }
